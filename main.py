@@ -1,43 +1,48 @@
 import os
 import streamlit as st
 import pandas as pd
-from supabase import create_client, Client
+import psycopg2
 
 # Fetch environment variables (set in Heroku)
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
 
-# Initialize Supabase client
-@st.cache_resource
-def init_supabase() -> Client:
-    if SUPABASE_URL and SUPABASE_KEY:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    else:
-        st.error("Missing Supabase URL or Key. Please check environment variables.")
-        return None
+# Function to connect to PostgreSQL database and fetch data
+def get_data_from_db():
+    try:
+        # Connect to your PostgreSQL DB
+        conn = psycopg2.connect(SUPABASE_DB_URL)
+        
+        # Create a cursor object
+        cur = conn.cursor()
+        
+        # Execute a SQL query (adjust with your table name)
+        cur.execute("SELECT * FROM your_table_name")
+        
+        # Fetch all rows from the query
+        rows = cur.fetchall()
+        
+        # Convert to a pandas DataFrame (adjust column names)
+        df = pd.DataFrame(rows, columns=["Column1", "Column2", "Column3"]) 
+        
+        # Close the connection
+        cur.close()
+        conn.close()
 
-# Fetch data from Supabase
-def fetch_data():
-    supabase = init_supabase()
-    if supabase:
-        response = supabase.table("your_table_name").select("*").execute()
-        if response.status_code == 200:
-            return pd.DataFrame(response.data)
-        else:
-            st.error(f"Error fetching data: {response.error_message}")
-            return pd.DataFrame()
-    else:
+        return df
+    
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
         return pd.DataFrame()
 
 # Streamlit app
-st.title("Supabase Data in Streamlit")
+st.title("Supabase (PostgreSQL) Data in Streamlit")
 
-st.write("Fetching data from Supabase:")
+st.write("Fetching data from PostgreSQL database:")
 
-# Retrieve and display data
-data = fetch_data()
+# Fetch and display the data
+data = get_data_from_db()
 
 if not data.empty:
     st.write(data)
 else:
-    st.write("No data available or error fetching data.")
+    st.write("No data available.")
