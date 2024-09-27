@@ -1,46 +1,57 @@
 import os
 import streamlit as st
 import pandas as pd
-import psycopg2
+import requests
 
 # Fetch environment variables (set in Heroku)
-SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Function to connect to PostgreSQL database and fetch data
-def get_data_from_db():
+# Function to fetch data from Supabase REST API
+def get_data_from_supabase():
     try:
-        # Connect to your PostgreSQL DB
-        conn = psycopg2.connect(SUPABASE_DB_URL)
-        
-        # Create a cursor object
-        cur = conn.cursor()
-        
-        # Execute a SQL query (adjust with your table name)
-        cur.execute("SELECT * FROM your_table_name")
-        
-        # Fetch all rows from the query
-        rows = cur.fetchall()
-        
-        # Convert to a pandas DataFrame (adjust column names)
-        df = pd.DataFrame(rows, columns=["Column1", "Column2", "Column3"]) 
-        
-        # Close the connection
-        cur.close()
-        conn.close()
+        # Define the table you want to fetch data from
+        TABLE_NAME = "users"  # Adjust to match your table name
 
-        return df
-    
+        # Headers for authorization
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        # URL to fetch data from
+        url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}"
+
+        # Query parameters (select all fields)
+        params = {
+            "select": "*"
+        }
+
+        # Make the request to Supabase REST API
+        response = requests.get(url, headers=headers, params=params)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            data = response.json()
+            # Convert to a pandas DataFrame (adjust column names to match your table structure)
+            df = pd.DataFrame(data)
+            return df
+        else:
+            st.error(f"Failed to fetch data. Status code: {response.status_code}, Error: {response.text}")
+            return pd.DataFrame()
+
     except Exception as e:
         st.error(f"Error: {str(e)}")
         return pd.DataFrame()
 
 # Streamlit app
-st.title("Supabase (PostgreSQL) Data in Streamlit")
+st.title("Supabase Data in Streamlit")
 
-st.write("Fetching data from PostgreSQL database:")
+st.write("Fetching data from Supabase REST API:")
 
 # Fetch and display the data
-data = get_data_from_db()
+data = get_data_from_supabase()
 
 if not data.empty:
     st.write(data)
